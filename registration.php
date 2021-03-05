@@ -20,39 +20,68 @@ $pga = new PHPGangsta_GoogleAuthenticator();
 $register_error_message = null;
 // check Register request
 if (isset($_POST['submit'])) {
+    $mail = $_POST['email'];
+    $username = $_POST['username'];
     $secret = $pga->createSecret();
     $insertId=null;
-    if($app->Register($_POST['name'],$_POST['email'],$_POST['username'],$_POST['password'],$secret,$insertId)) {
-
-        $website = 'http://localhost/two_factor_authentication/'; //Your Website
+    if($app->Register($_POST['name'],$mail,$username,$_POST['password'],$secret,$insertId)) {
+        $website = 'http://rocmn.markkors.nl/two_factor_authentication/'; //Your Website
         $title= 'two_factor_authentication';
         $qrCodeUrl = $pga->getQRCodeGoogleUrl($title, $secret,$website);
+
+        sendHTMLMail($username,$mail,$qrCodeUrl);
+
         $jscript = <<< CODE
 <script>
 document.getElementById("register").style.display='none';
 async function fetchQRCode() {
-    let response = await fetch('http://localhost/two_factor_authentication/qrcode.php?secret=$secret');
-    let responseText = await response.text();
-    let img=document.createElement("img");
-    img.setAttribute("src",responseText);
-    img.setAttribute("style","display:block;margin: 2% auto;width:50%;");
     let qr = document.getElementById("qr");
-    qr.appendChild(img);
-    qr.style.display="block";
+    qr.style.display="flex";
     
 }
 (async() => {
     await fetchQRCode();
 })();
- 
 </script>
-
 CODE;
-
 
     } else {
         $register_error_message="Something went wrong while registering user...";
     }
+}
+
+
+function sendHTMLMail($user,$mail,$qr) {
+    // To send HTML mail, the Content-type header must be set
+    $headers  = 'MIME-Version: 1.0' . "\r\n";
+    $headers .= 'Content-type: text/html; charset=iso-8859-1' . "\r\n";
+    $subject = "Registratie 2-factor authenticatie demo";
+    $from = "mark@markkors.nl";
+
+// Create email headers
+    $headers .= 'From: '.$from."\r\n".
+        'Reply-To: '.$from."\r\n" .
+        'X-Mailer: PHP/' . phpversion();
+
+// Compose a simple HTML email message
+    $message = '<html><body>';
+    $message .= '<h1 style="color:#f40;">Welkom ' . $user . '</h1>';
+    $message .= '<p style="color:#080;font-size:18px;">Scan de volgende code in je authenticator app om toegang te krijgen tot de applicatie....</p>';
+    $message .= sprintf('<img src="%s">',$qr);
+    $message .= '</body></html>';
+
+    mail($mail, $subject, $message, $headers);
+}
+
+
+function doMail($to) {
+    $subject = 'the subject';
+    $message = 'hello';
+    $headers = 'From: webmaster@example.com' . "\r\n" .
+        'Reply-To: webmaster@example.com' . "\r\n" .
+        'X-Mailer: PHP/' . phpversion();
+
+    mail($to, $subject, $message, $headers);
 }
 ?>
 
@@ -63,7 +92,14 @@ CODE;
     <title>Registration</title>
     <!-- Latest compiled and minified CSS -->
     <link rel="stylesheet" href="css/bootstrap.min.css">
-
+<style>
+    .registration_msg {
+        display: none;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+</style>
 </head>
 <body>
 
@@ -104,7 +140,7 @@ CODE;
     </div>
 </div>
 
-<div class="col-md-5 col-md-offset-3 well mx-auto" id="qr" style="display: none">Scan deze QR code met de Google / Microsoft Authenticator en gebruik deze om <a href="index.php">in te loggen</a></div>
+<div class="registration_msg" id="qr">Scan de QR code in je e-mail met de Google / Microsoft Authenticator en gebruik deze om <a href="index.php"> in te loggen</a></div>
 <?=$jscript?>
 
 </body>
